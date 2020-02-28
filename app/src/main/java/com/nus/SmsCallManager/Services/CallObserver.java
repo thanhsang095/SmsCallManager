@@ -3,18 +3,14 @@ package com.nus.SmsCallManager.Services;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
-import android.os.Bundle;
-import android.provider.Telephony;
-import android.telephony.SmsMessage;
 import android.telephony.TelephonyManager;
 import android.util.Log;
-import android.widget.Toast;
 
 import com.nus.SmsCallManager.Utils.Constants;
 
 import java.util.Date;
 
-public class SmsCallReceiver extends BroadcastReceiver {
+public class CallObserver extends BroadcastReceiver {
 
     //The receiver will be recreated whenever android feels like it.  We need a static variable to remember data between instantiations
     private static int lastState = TelephonyManager.CALL_STATE_IDLE;
@@ -42,25 +38,6 @@ public class SmsCallReceiver extends BroadcastReceiver {
             }
 
             onCallStateChanged(context, state, number);
-        } else if (intent.getAction().equals("android.provider.Telephony.SMS_RECEIVED")) {
-            Bundle bundle = intent.getExtras();
-            SmsMessage[] msgs = null;
-            String str = "";
-            if (bundle != null)
-            {
-                //---retrieve the SMS message received---
-                Object[] pdus = (Object[]) bundle.get("pdus");
-                msgs = new SmsMessage[pdus.length];
-                for (int i=0; i<msgs.length; i++){
-                    msgs[i] = SmsMessage.createFromPdu((byte[])pdus[i]);
-                    str += "SMS from " + msgs[i].getOriginatingAddress();
-                    str += " :";
-                    str += msgs[i].getMessageBody().toString();
-                    str += "n";
-                }
-                //---display the new SMS message---
-                Toast.makeText(context, str, Toast.LENGTH_SHORT).show();
-            }
         }
     }
 

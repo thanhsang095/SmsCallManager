@@ -1,11 +1,16 @@
 package com.nus.SmsCallManager.Services;
 
 import android.app.Service;
+import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.database.Cursor;
+import android.net.Uri;
+import android.os.Handler;
 import android.os.IBinder;
 import android.provider.CallLog;
+import android.telephony.TelephonyManager;
 import android.util.Log;
 
 import com.nus.SmsCallManager.Utils.Constants;
@@ -13,7 +18,7 @@ import com.nus.SmsCallManager.Utils.Constants;
 import java.util.Date;
 
 public class SmsCallService extends Service {
-    CallReceiver receiver = null;
+    CallObserver receiver = null;
 
     public SmsCallService() { }
 
@@ -21,14 +26,19 @@ public class SmsCallService extends Service {
     public void onCreate() {
         super.onCreate();
         // init and register receiver
-//        receiver = new CallReceiver();
-//        IntentFilter filter = new IntentFilter();
-//        filter.addAction("android.provider.Telephony.SMS_RECEIVED");
-//        filter.addAction(TelephonyManager.ACTION_PHONE_STATE_CHANGED);
-//        registerReceiver(receiver, filter);
-//
+        receiver = new CallObserver();
+        IntentFilter filter = new IntentFilter();
+        filter.addAction("android.provider.Telephony.SMS_RECEIVED");
+        filter.addAction(TelephonyManager.ACTION_PHONE_STATE_CHANGED);
+        registerReceiver(receiver, filter);
+
 //        HandlerThread thread = new HandlerThread("ServiceStartArguments");
 //        thread.start();
+
+        // register outgoing sms listener
+        SmsObserver smsObserver = new SmsObserver(new Handler(), this);
+        ContentResolver contentResolver = getApplicationContext().getContentResolver();
+        contentResolver.registerContentObserver(Uri.parse("content://sms"),true, smsObserver);
     }
 
     @Override

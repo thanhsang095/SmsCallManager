@@ -39,6 +39,7 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onClick(View v) {
                 // TODO
+                startService(new Intent(MainActivity.this, SmsCallService.class));
             }
         });
     }
@@ -65,6 +66,7 @@ public class MainActivity extends AppCompatActivity {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_CALL_LOG)
                 + ContextCompat.checkSelfPermission(this, Manifest.permission.READ_PHONE_STATE)
                 + ContextCompat.checkSelfPermission(this, Manifest.permission.RECEIVE_SMS)
+                + ContextCompat.checkSelfPermission(this, Manifest.permission.READ_SMS)
                 != PackageManager.PERMISSION_GRANTED) {
             if (ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.READ_CALL_LOG)
                     || ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.READ_PHONE_STATE)) {
@@ -72,7 +74,8 @@ public class MainActivity extends AppCompatActivity {
                         new String[]{
                                 Manifest.permission.READ_CALL_LOG,
                                 Manifest.permission.READ_PHONE_STATE,
-                                Manifest.permission.RECEIVE_SMS
+                                Manifest.permission.RECEIVE_SMS,
+                                Manifest.permission.READ_SMS
                         },
                         ASK_MULTIPLE_PERMISSION_REQUEST_CODE);
             } else {
@@ -80,7 +83,8 @@ public class MainActivity extends AppCompatActivity {
                         new String[]{
                                 Manifest.permission.READ_CALL_LOG,
                                 Manifest.permission.READ_PHONE_STATE,
-                                Manifest.permission.RECEIVE_SMS
+                                Manifest.permission.RECEIVE_SMS,
+                                Manifest.permission.READ_SMS
                         },
                         ASK_MULTIPLE_PERMISSION_REQUEST_CODE);
             }
