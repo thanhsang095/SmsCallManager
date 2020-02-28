@@ -13,32 +13,39 @@ import android.provider.CallLog;
 import android.telephony.TelephonyManager;
 import android.util.Log;
 
+import com.google.gson.Gson;
+import com.nus.SmsCallManager.Models.CallLogModel;
+import com.nus.SmsCallManager.Models.SmsModel;
 import com.nus.SmsCallManager.Utils.Constants;
+import com.nus.SmsCallManager.Utils.TimeUtils;
 
-import java.util.Date;
+import java.util.ArrayList;
+import java.util.List;
 
 public class SmsCallService extends Service {
-    CallObserver receiver = null;
+    private static final String SMS_URI = "content://sms";
 
-    public SmsCallService() { }
+    private CallObserver receiver = null;
+    private ContentResolver contentResolver = null;
+    private SmsObserver smsObserver = null;
+
+    public SmsCallService() {
+    }
 
     @Override
     public void onCreate() {
         super.onCreate();
-        // init and register receiver
+
+        // Register call receiver
         receiver = new CallObserver();
         IntentFilter filter = new IntentFilter();
-        filter.addAction("android.provider.Telephony.SMS_RECEIVED");
         filter.addAction(TelephonyManager.ACTION_PHONE_STATE_CHANGED);
         registerReceiver(receiver, filter);
 
-//        HandlerThread thread = new HandlerThread("ServiceStartArguments");
-//        thread.start();
-
-        // register outgoing sms listener
-        SmsObserver smsObserver = new SmsObserver(new Handler(), this);
-        ContentResolver contentResolver = getApplicationContext().getContentResolver();
-        contentResolver.registerContentObserver(Uri.parse("content://sms"),true, smsObserver);
+        // Register sms observer
+        smsObserver = new SmsObserver(new Handler(), this);
+        contentResolver = getApplicationContext().getContentResolver();
+        contentResolver.registerContentObserver(Uri.parse(SMS_URI), true, smsObserver);
     }
 
     @Override
@@ -47,54 +54,107 @@ public class SmsCallService extends Service {
         new Thread(new Runnable() {
             @Override
             public void run() {
-                try {
-                    String callText = getCallDetails(SmsCallService.this);
-                    Log.d(Constants.TAG, "Service Call Details: \n" + callText);
-                    Thread.sleep(2000);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
-//                stopSelf();
+                List callLogList = getCallDetails(SmsCallService.this);
+                List smsLogList = getMsgDetails(SmsCallService.this);
+
+                String callJson = new Gson().toJson(callLogList);
+                String smsJson = new Gson().toJson(smsLogList);
+
+                Log.d(Constants.TAG, "* * * Service Call Details * * * \n" + callJson);
+                Log.d(Constants.TAG, "* * * SMS Details * * * \n" + smsJson);
             }
         }).start();
         return Service.START_STICKY;
     }
 
-    private String getCallDetails(Context context) {
 
-        StringBuffer sb = new StringBuffer();
+    /**
+     * Get call log details
+     *
+     * @param context
+     * @return
+     */
+    private List getCallDetails(Context context) {
+
+        List<CallLogModel> callLogList = new ArrayList<>();
+        CallLogModel callLogModel;
+
         Cursor managedCursor = context.getContentResolver().query(CallLog.Calls.CONTENT_URI, null, null, null, null);
         int number = managedCursor.getColumnIndex(CallLog.Calls.NUMBER);
         int type = managedCursor.getColumnIndex(CallLog.Calls.TYPE);
         int date = managedCursor.getColumnIndex(CallLog.Calls.DATE);
         int duration = managedCursor.getColumnIndex(CallLog.Calls.DURATION);
-        sb.append("Call Details :");
+
         while (managedCursor.moveToNext()) {
-            String phNumber = managedCursor.getString(number);
-            String callType = managedCursor.getString(type);
+            callLogModel = new CallLogModel();
+            callLogModel.setPhoneNumber(managedCursor.getString(number));
             String callDate = managedCursor.getString(date);
-            Date callDayTime = new Date(Long.valueOf(callDate));
-            String callDuration = managedCursor.getString(duration);
-            String dir = null;
-            int dircode = Integer.parseInt(callType);
+            callLogModel.setCallDate(TimeUtils.formatTimefromString(callDate));
+            callLogModel.setCallDuration(managedCursor.getString(duration));
+
+            String callTypeNumber = managedCursor.getString(type);
+            String callType = null;
+            int dircode = Integer.parseInt(callTypeNumber);
             switch (dircode) {
                 case CallLog.Calls.OUTGOING_TYPE:
-                    dir = "OUTGOING";
+                    callType = "OUTGOING";
                     break;
 
                 case CallLog.Calls.INCOMING_TYPE:
-                    dir = "INCOMING";
+                    callType = "INCOMING";
                     break;
 
                 case CallLog.Calls.MISSED_TYPE:
-                    dir = "MISSED";
+                    callType = "MISSED";
                     break;
             }
-            sb.append("\nPhone Number:--- " + phNumber + " \nCall Type:--- " + dir + " \nCall Date:--- " + callDayTime + " \nCall duration in sec :--- " + callDuration);
-            sb.append("\n----------------------------------");
+            callLogModel.setCallType(callType);
+            callLogList.add(callLogModel);
         }
+
         managedCursor.close();
-        return sb.toString();
+        return callLogList;
+    }
+
+
+    /**
+     * Get message inbox details
+     *
+     * @param context
+     * @return
+     */
+    private List getMsgDetails(Context context) {
+
+        List<SmsModel> smsList = new ArrayList<>();
+        SmsModel smsModel;
+
+        Cursor cursor = context.getContentResolver().query(Uri.parse(SMS_URI), null, null, null, null);
+        int totalSMS = cursor.getCount();
+
+        if (cursor.moveToFirst()) {
+            for (int i = 0; i < totalSMS; i++) {
+                smsModel = new SmsModel();
+                smsModel.setId(cursor.getString(cursor.getColumnIndexOrThrow("_id")));
+                smsModel.setAddress(cursor.getString(cursor.getColumnIndexOrThrow("address")));
+                smsModel.setMsg(cursor.getString(cursor.getColumnIndexOrThrow("body")));
+                smsModel.setReadState(cursor.getString(cursor.getColumnIndex("read")));
+                String time = cursor.getString(cursor.getColumnIndexOrThrow("date"));
+                smsModel.setTime(TimeUtils.formatTimefromString(time));
+                if (cursor.getString(cursor.getColumnIndexOrThrow("type")).contains("1")) {
+                    smsModel.setFolderName("inbox");
+                } else {
+                    smsModel.setFolderName("sent");
+                }
+
+                smsList.add(smsModel);
+                cursor.moveToNext();
+            }
+        } else {
+            Log.d(Constants.TAG, "You have no SMS");
+        }
+
+        cursor.close();
+        return smsList;
     }
 
     @Override
@@ -106,9 +166,15 @@ public class SmsCallService extends Service {
     @Override
     public void onDestroy() {
         super.onDestroy();
+
         if (receiver != null) {
             unregisterReceiver(receiver);
         }
+
+        if (contentResolver != null && smsObserver != null) {
+            contentResolver.unregisterContentObserver(smsObserver);
+        }
+
         Log.d(Constants.TAG, "Service onDestroy");
     }
 }
