@@ -42,9 +42,9 @@ public class SmsObserver extends ContentObserver {
             if (cursor != null && cursor.moveToFirst() && previousSmsId != newId) {
                 int type = cursor.getInt(cursor.getColumnIndex(COLUMN_TYPE));
                 int lastMsgId = cursor.getInt(cursor.getColumnIndex("_id"));
-                    String body = cursor.getString(cursor.getColumnIndex("body")); //content of sms
-                    String phoneNumber = cursor.getString(cursor.getColumnIndex("address")); //phone num
-                    String time = cursor.getString(cursor.getColumnIndex("date")); //date
+                String body = cursor.getString(cursor.getColumnIndex("body")); //content of sms
+                String phoneNumber = cursor.getString(cursor.getColumnIndex("address")); //phone num
+                String time = cursor.getString(cursor.getColumnIndex("date")); //date
 
                 if (type == MESSAGE_TYPE_SENT) {
                     Log.d(Constants.TAG, "Id: " + lastMsgId + "\nSms to: " + phoneNumber + "\nContent: " + body + "\nAt " + TimeUtils.formatTimefromString(time));
